@@ -1,0 +1,55 @@
+﻿@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<canvas id="@_canvasID" width="500px" height="200px" />
+
+@code {
+    private const string _canvasID = "marshalled-canvas";
+    
+    private IJSObjectReference? module;
+    private int y = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", $"./_content/{nameof(SharedGameLibrary)}/{nameof(MarshalledCanvas)}.razor.js");
+
+            await module.InvokeVoidAsync("initialiseModule", DotNetObjectReference.Create(this), _canvasID);
+        }
+    }
+
+    async ValueTask IAsyncDisposable.DisposeAsync()
+    {
+        if (module is not null)
+        {
+            await module.DisposeAsync();
+        }
+    }
+
+    protected async ValueTask MyFunctionWhichIsCalledEachFrame()
+    {
+        // Clear the canvas
+        if (module is not null)
+        {
+            await module.InvokeVoidAsync("clearRect", 0, 0, 500, 500);
+
+            // Draw something
+            for (var i = 0; i < 400; i += 2)
+            {
+                await module.InvokeVoidAsync("drawRect", i, y + 50, 2, 50);
+            }
+
+            y++;
+
+            if (y > 150) y = 0;
+        }
+    }
+
+    [JSInvokable]
+    public async ValueTask GameLoop(float gameTime, float timeDifference, float currentFramePerSecond)
+    {
+        await Task.Run(MyFunctionWhichIsCalledEachFrame);
+    }
+}

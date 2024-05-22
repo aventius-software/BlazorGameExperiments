@@ -1,0 +1,40 @@
+﻿@using System.Runtime.InteropServices.JavaScript
+
+<canvas id="@_canvasID" width="500px" height="200px" />
+
+@code {    
+    private const string _canvasID = "unmarshalled-canvas";    
+
+    private int y = 0;
+    protected static UnmarshalledCanvas? ComponentObject;
+
+    protected override async Task OnInitializedAsync()
+    {        
+        // Load module - note that there is a limitation when using JSHost.ImportAsync in a Razor class library as
+        // you cannot load collocated JS files. You must place the JS module file in the 'wwwroot' folder and load
+        // from there. See this issue here https://github.com/dotnet/aspnetcore/issues/55817
+        await JSHost.ImportAsync("unmarshalledInterop", $"/_content/{nameof(SharedGameLibrary)}/unmarshalledInterop.js");
+
+        // Initialise some stuff on the JS side
+        InitialiseModule(nameof(SharedGameLibrary), nameof(UnmarshalledCanvas), _canvasID);
+
+        // Since the import functions are static we need save a reference to this object
+        ComponentObject = this;
+    }    
+
+    protected void MyFunctionWhichIsCalledEachFrame()
+    {
+        // Clear the canvas
+        ClearRect(0, 0, 500, 500);
+
+        // Draw something
+        for (var i = 0; i < 400; i += 2)
+        {
+            DrawRect(i, y + 50, 2, 50);
+        }
+
+        y++;
+
+        if (y > 150) y = 0;
+    }
+}
